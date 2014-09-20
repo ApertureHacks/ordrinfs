@@ -1,3 +1,4 @@
+PyYAML==3.11
 fusepy==2.0.2
 jsonschema==2.4.0
 ordrin==1.0.6
