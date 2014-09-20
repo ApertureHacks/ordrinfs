@@ -7,7 +7,8 @@ import errno
 from fuse import FUSE, FuseOSError, Operations
 
 
-class Passthrough(Operations):
+class OrdrinFs(Operations):
+
     def __init__(self, root):
         self.root = root
 
@@ -147,7 +148,7 @@ class Passthrough(Operations):
 
 
 def main(mountpoint, root):
-    FUSE(Passthrough(root), mountpoint, foreground=True)
+    FUSE(OrdrinFs(root), mountpoint, foreground=True)
 
 if __name__ == '__main__':
     main(sys.argv[2], sys.argv[1])
