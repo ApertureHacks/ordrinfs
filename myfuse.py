@@ -20,6 +20,25 @@ class Passthrough(Operations):
         path = os.path.join(self.root, partial)
         return path
 
+    def _is_dir(self, path):
+        return self._is_orderin or self._is_category or self._is_restaurant
+
+    def _is_ronly(self, path):
+        if self._is_restaurant(os.path.dirname(path)):
+            rfile = os.path.basename(path)
+            if rfile in ['order.out', 'menu']:
+                return True
+        return False
+
+    def _is_orderin(self, path):
+        return len(path.split('/')) == 0
+
+    def _is_category(self, path):
+        return len(path.split('/')) == 1
+
+    def _is_restaurant(self, path):
+        return len(path.split('/')) == 2
+
     # Filesystem methods
     # ==================
 
