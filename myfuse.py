@@ -45,6 +45,13 @@ class OrdrinFs(Operations):
 
     def access(self, path, mode):
         full_path = self._full_path(path)
+        if self._is_dir(path):
+            return (mode & (os.R_OK | os.X_OK)) > 0
+        elif self._is_ronly(path):
+            return (mode & os.R_OK)
+        elif self._is_orderin(path):
+            return (mode & (os.R_OK | os.W_OK))
+
         if not os.access(full_path, mode):
             raise FuseOSError(errno.EACCES)
 
