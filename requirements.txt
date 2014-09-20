@@ -1,0 +1,5 @@
+fusepy==2.0.2
+jsonschema==2.4.0
+ordrin==1.0.6
+requests==2.4.1
+wsgiref==0.1.2
