@@ -28,6 +28,16 @@ class OrdrinApi:
         response = self.ordrin_api.restaurant_details(rid)
         return response
 
+    def makeGuestOrder(self, args):
+        u = self.user_data
+        return self.ordrin_api.order_guest(args['rid'], u['em'], args['tray'],
+                args['tip'], u['first_name'], u['last_name'], u['phone'],
+                u['zip'], u['addr'], u['city'], u['state'],
+                u['card']['number'], u['card']['cvc'], u['card']['expiry'],
+                u['card']['bill_addr'], u['card']['bill_city'],
+                u['card']['bill_state'], u['card']['bill_zip'],
+                u['card']['bill_phone'], card_name = u['card']['name'],
+                delivery_date = 'ASAP')
 
 class Item:
 
@@ -80,7 +90,7 @@ class Restaurant:
 class LibOrdrIn:
 
     def __init__(self, user_info, production=False):
-        user_data = self.parseUserInfo(user_info)
+        user_data = self._parseUserInfo(user_info)
         self.api = OrdrinApi(user_data, production)
 
     def getRestaurants(self):
@@ -91,7 +101,22 @@ class LibOrdrIn:
             restaurants.append(Restaurant(details))
         return restaurants
 
-    def parseUserInfo(self, user_file):
+    def makeOrder(self, rid, items, tip):
+        args = {}
+        args['rid'] = rid
+        args['tip'] = tip
+        args['tray'] = self._generate_tray(items)
+        print args['tray']
+        return self.api.makeGuestOrder(args)
+
+    def _parseUserInfo(self, user_file):
         with open(user_file, 'r') as f:
             user_data = yaml.load(f)
         return user_data
+
+    def _generate_tray(self, items):
+        tray_items = []
+        for item in items:
+            tray_item = "%s/1" % item['id']
+            tray_items.append(tray_item)
+        return '+'.join(tray_items)
