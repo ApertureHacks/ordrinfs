@@ -27,12 +27,14 @@ class OrdrinFs(Operations):
 
         self.categories = {}
         self.restaurants = {}
+        self.orders = {}
 
-        ordrin = libordrin.LibOrdrIn('/home/josh/.ordrin.yaml')
-        restaurants = ordrin.getRestaurants()
+        self.ordrin = libordrin.LibOrdrIn('/home/josh/.ordrin.yaml')
+        restaurants = self.ordrin.getRestaurants()
 
         for res in restaurants:
             res.name = res.name.replace('/', '(slash)')
+            self.orders[res.name] = []
             self.restaurants[res.name] = res
             for cui in res.cuisine:
                 if cui not in self.categories:
@@ -64,6 +66,12 @@ class OrdrinFs(Operations):
             return True
         return False
 
+    def _is_ordr_out(self, path):
+        if self._is_restaurant(os.path.dirname(path)) and\
+                os.path.basename(path) == 'ordr.out':
+            return True
+        return False
+
     def _is_menu(self, path):
         if self._is_restaurant(os.path.dirname(path)) and \
                 os.path.basename(path) == 'menu':
@@ -80,9 +88,14 @@ class OrdrinFs(Operations):
     def _is_restaurant(self, path):
         if len(path.split('/')) == 3 and \
                 os.path.basename(path) in self.restaurants:
-            self.logger.debug('%s is restaurant', path)
             return True
         return False
+
+    def _create_ordr_out(self, path, full_path):
+        restname = os.path.basename(os.path.dirname(path))
+        if len(self.orders[restname]) <= 0:
+            return
+        # FIXME: build a file with all order statuses
 
     def _create_menu(self, path, full_path):
         rest = self.restaurants[os.path.basename(os.path.dirname(path))]
@@ -100,11 +113,27 @@ class OrdrinFs(Operations):
                 mfile.write('    price: %s\n' % item.price)
                 mfile.write('    id: %s\n' % item.id)
 
-    def _order_from_yaml(self, full_path):
+    def _order_from_yaml(self, path):
+        self.logger.debug('placing order from %s' % path)
+        full_path = self._full_path(path)
+
+        restname = os.path.basename(os.path.dirname(path))
+        rid = self.restaurants[restname].id
+
         with open(full_path, 'r+') as yfile:
             order_data = yaml.load(yfile)
-        items = order_data['Items']
+
         tip = order_data['Tip']
+
+        orig_items = order_data['Items']
+        items = []
+        for item in orig_items:
+            items.append(item)
+
+        self.logger.debug('sending order...')
+        order = self.ordrin.makeOrder(rid, items, tip)
+        self.logger.debug(order)
+        self.orders[restname].append(order)
 
     # Filesystem methods
     # ==================
@@ -159,12 +188,16 @@ class OrdrinFs(Operations):
             st['st_atime'] = time.time()
             st['st_ctime'] = time.time()
             st['st_gid'] = os.getgid()
-            st['st_mode'] = 4516  # Magic?
+            # st['st_mode'] = 4516  # Magic?
+            st['st_mode'] = 33188  # Magic?
             st['st_mtime'] = time.time()
             st['st_nlink'] = 1
             st['st_size'] = 0
             st['st_uid'] = os.getuid()
             return st
+
+        if self._is_ordr_out(path):
+            self._create_ordr_out(path, full_path)
 
         if self._is_menu(path):
             self._create_menu(path, full_path)
@@ -187,7 +220,10 @@ class OrdrinFs(Operations):
             for rest in self.categories[os.path.basename(path)]:
                 dirents.add(rest.name)
         elif self._is_restaurant(path):
+            resname = os.path.basename(path)
             dirents.update(set(['menu', 'ordr.in']))
+            if resname in self.orders and len(self.orders[resname]) > 0:
+                dirents.add('ordr.out')
 
         if os.path.isdir(full_path):
             dirents.update(set(os.listdir(full_path)))
@@ -254,6 +290,11 @@ class OrdrinFs(Operations):
     def open(self, path, flags):
         self.logger.debug('open %s', path)
         full_path = self._full_path(path)
+
+        if self._is_ordr_in(path):
+            if not os.path.isfile(full_path):
+                open(full_path, 'a').close()
+
         return os.open(full_path, flags)
 
     def create(self, path, mode, fi=None):
@@ -267,12 +308,7 @@ class OrdrinFs(Operations):
         return os.read(fh, length)
 
     def write(self, path, buf, offset, fh):
-        self.logger.debug('write %s', path)
-
-        if self._is_ordr_in(path):
-            # FIXME
-            self.logger.debug('is order.in')
-            return
+        self.logger.debug('write \n path: %s\n buf: %s\n offset: %s\n fh: %s\n', path, buf, offset, fh)
 
         os.lseek(fh, offset, os.SEEK_SET)
         return os.write(fh, buf)
@@ -292,7 +328,7 @@ class OrdrinFs(Operations):
         full_path = self._full_path(path)
 
         if self._is_ordr_in(path):
-            # FIXME: make the order with an api call
+            self._order_from_yaml(path)
             os.remove(full_path)
 
         return os.close(fh)
