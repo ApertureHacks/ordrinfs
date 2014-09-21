@@ -97,8 +97,7 @@ class OrdrinFs(Operations):
     def getattr(self, path, fh=None):
         self.logger.debug('getattr %s', path)
 
-        if self._is_category(path):
-            self.logger.critical('is a category %s', path)
+        if self._is_category(path) or self._is_restaurant(path):
             st = {}
             st['st_atime'] = time.time()
             st['st_ctime'] = time.time()
@@ -124,6 +123,9 @@ class OrdrinFs(Operations):
         if self._is_root(path):
             for key in self.categories:
                 dirents.append(key)
+        elif self._is_category(path):
+            for rest in self.categories[os.path.basename(path)]:
+                dirents.append(rest.name)
         elif self._is_restaurant(path):
             # FIXME
             pass
