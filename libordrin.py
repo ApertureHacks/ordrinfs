@@ -106,7 +106,6 @@ class LibOrdrIn:
         args['rid'] = rid
         args['tip'] = tip
         args['tray'] = self._generate_tray(items)
-        print args['tray']
         #return self.api.makeGuestOrder(args)
         if not error:
             return { '_error': '0', 'refnum': 'abcc', 'msg': 'Success!',
