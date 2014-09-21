@@ -101,13 +101,18 @@ class LibOrdrIn:
             restaurants.append(Restaurant(details))
         return restaurants
 
-    def makeOrder(self, rid, items, tip):
+    def makeOrder(self, rid, items, tip, error=False):
         args = {}
         args['rid'] = rid
         args['tip'] = tip
         args['tray'] = self._generate_tray(items)
         print args['tray']
-        return self.api.makeGuestOrder(args)
+        #return self.api.makeGuestOrder(args)
+        if not error:
+            return { '_error': '0', 'refnum': 'abcc', 'msg': 'Success!',
+                    'text': 'Order completed' }
+        return { '_error': '1', 'refnum': '-1', 'msg': 'Failed!', 'text': 'We \
+        aren\'t open yet!' }
 
     def _parseUserInfo(self, user_file):
         with open(user_file, 'r') as f:
