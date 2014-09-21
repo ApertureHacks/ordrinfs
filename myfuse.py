@@ -153,6 +153,18 @@ class OrdrinFs(Operations):
             st['st_uid'] = os.getuid()
             return st
 
+        if self._is_ordr_in(path):
+            st = {}
+            st['st_atime'] = time.time()
+            st['st_ctime'] = time.time()
+            st['st_gid'] = os.getgid()
+            st['st_mode'] = 4516  # Magic?
+            st['st_mtime'] = time.time()
+            st['st_nlink'] = 1
+            st['st_size'] = 0
+            st['st_uid'] = os.getuid()
+            return st
+
         if self._is_menu(path):
             self._create_menu(path, full_path)
 
