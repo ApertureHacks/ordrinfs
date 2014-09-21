@@ -7,6 +7,7 @@ import errno
 import logging
 
 import libordrin
+from subprocess import call
 from fuse import FUSE, FuseOSError, Operations
 
 
@@ -22,10 +23,14 @@ class OrdrinFs(Operations):
         self.logger.setLevel(logging.DEBUG)
 
         self.categories = {}
+        self.restaurants = {}
+
         ordrin = libordrin.LibOrdrIn('/home/josh/.ordrin.yaml')
         restaurants = ordrin.getRestaurants()
 
         for res in restaurants:
+            res.name = res.name.replace('/', '(slash)')
+            self.restaurants[res.name] = res
             for cui in res.cuisine:
                 if cui not in self.categories:
                     self.categories[cui] = []
@@ -50,6 +55,12 @@ class OrdrinFs(Operations):
                 return True
         return False
 
+    def _is_menu(self, path):
+        if self._is_restaurant(os.path.dirname(path)) and \
+                os.path.basename(path) == 'menu':
+            return True
+        return False
+
     def _is_root(self, path):
         return path == '/'
 
@@ -58,9 +69,26 @@ class OrdrinFs(Operations):
             path.split('/')[1] in self.categories
 
     def _is_restaurant(self, path):
-        if path == '/':
-            return False
-        return len(path.split('/')) == 3
+        if len(path.split('/')) == 3 and \
+                os.path.basename(path) in self.restaurants:
+            self.logger.debug('%s is restaurant', path)
+            return True
+        return False
+
+    def _create_menu(self, path, full_path):
+        rest = self.restaurants[os.path.basename(os.path.dirname(path))]
+        # FIXME: probably shouldn't shell out for this
+        call(['mkdir', '-p', os.path.dirname(full_path)])
+        mfile = open(full_path, 'w+')
+        mfile.write('Id: %s\n' % rest.id)
+        mfile.write('Phone: %s\n' % rest.phone)
+        mfile.write('Address: %s\n' % rest.addr)
+        mfile.write('City: %s\n\n' % rest.city)
+        mfile.write('Menu:\n')
+        for cat, items in rest.menu.menu.iteritems():
+            mfile.write('%s:\n' % cat)
+            for item in items:
+                mfile.write('  - %s\n' % item.name)
 
     # Filesystem methods
     # ==================
@@ -96,6 +124,7 @@ class OrdrinFs(Operations):
 
     def getattr(self, path, fh=None):
         self.logger.debug('getattr %s', path)
+        full_path = self._full_path(path)
 
         if self._is_category(path) or self._is_restaurant(path):
             st = {}
@@ -109,6 +138,9 @@ class OrdrinFs(Operations):
             st['st_uid'] = os.getuid()
             return st
 
+        if self._is_menu(path):
+            self._create_menu(path, full_path)
+
         full_path = self._full_path(path)
         st = os.lstat(full_path)
         return dict((key, getattr(st, key))
@@ -119,19 +151,18 @@ class OrdrinFs(Operations):
         self.logger.debug('readdir %s', path)
         full_path = self._full_path(path)
 
-        dirents = ['.', '..']
+        dirents = set(['.', '..'])
         if self._is_root(path):
             for key in self.categories:
-                dirents.append(key)
+                dirents.add(key)
         elif self._is_category(path):
             for rest in self.categories[os.path.basename(path)]:
-                dirents.append(rest.name)
+                dirents.add(rest.name)
         elif self._is_restaurant(path):
-            # FIXME
-            pass
+            dirents.add('menu')
 
         if os.path.isdir(full_path):
-            dirents.extend(os.listdir(full_path))
+            dirents.update(set(os.listdir(full_path)))
 
         for r in dirents:
             yield r
