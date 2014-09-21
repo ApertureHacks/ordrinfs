@@ -2,9 +2,11 @@ from __future__ import print_function
 
 import os
 import sys
+import time
 import errno
 import logging
 
+import libordrin
 from fuse import FUSE, FuseOSError, Operations
 
 
@@ -18,6 +20,16 @@ class OrdrinFs(Operations):
 
         self.logger = logging.getLogger('FUSE')
         self.logger.setLevel(logging.DEBUG)
+
+        self.categories = {}
+        ordrin = libordrin.LibOrdrIn('/home/josh/.ordrin.yaml')
+        restaurants = ordrin.getRestaurants()
+
+        for res in restaurants:
+            for cui in res.cuisine:
+                if cui not in self.categories:
+                    self.categories[cui] = []
+                self.categories[cui].append(res)
 
     # Helpers
     # =======
@@ -109,8 +121,16 @@ class OrdrinFs(Operations):
         full_path = self._full_path(path)
 
         dirents = ['.', '..']
+        if self._is_root(path):
+            for key in self.categories:
+                dirents.append(key)
+        elif self._is_restaurant(path):
+            # FIXME
+            pass
+
         if os.path.isdir(full_path):
             dirents.extend(os.listdir(full_path))
+
         for r in dirents:
             yield r
 
@@ -134,6 +154,8 @@ class OrdrinFs(Operations):
 
     def mkdir(self, path, mode):
         self.logger.debug('mkdir %s', path)
+        if not self._is_restaurant(os.path.dirname(path)):
+            raise FuseOSError(errno.EACCES)
         return os.mkdir(self._full_path(path), mode)
 
     def statfs(self, path):
