@@ -84,6 +84,20 @@ class OrdrinFs(Operations):
 
     def getattr(self, path, fh=None):
         self.logger.debug('getattr %s', path)
+
+        if self._is_category(path):
+            self.logger.critical('is a category %s', path)
+            st = {}
+            st['st_atime'] = time.time()
+            st['st_ctime'] = time.time()
+            st['st_gid'] = os.getgid()
+            st['st_mode'] = 16877  # Magic?
+            st['st_mtime'] = time.time()
+            st['st_nlink'] = 1
+            st['st_size'] = 8
+            st['st_uid'] = os.getuid()
+            return st
+
         full_path = self._full_path(path)
         st = os.lstat(full_path)
         return dict((key, getattr(st, key))
