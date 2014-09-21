@@ -29,7 +29,7 @@ class OrdrinFs(Operations):
         return path
 
     def _is_dir(self, path):
-        return self._is_orderin or self._is_category or self._is_restaurant
+        return self._is_root or self._is_category or self._is_restaurant
 
     def _is_ronly(self, path):
         if self._is_restaurant(os.path.dirname(path)):
@@ -38,14 +38,17 @@ class OrdrinFs(Operations):
                 return True
         return False
 
-    def _is_orderin(self, path):
-        return len(path.split('/')) == 0
+    def _is_root(self, path):
+        return path == '/'
 
     def _is_category(self, path):
-        return len(path.split('/')) == 1
+        return len(path.split('/')) == 2 and \
+            path.split('/')[1] in self.categories
 
     def _is_restaurant(self, path):
-        return len(path.split('/')) == 2
+        if path == '/':
+            return False
+        return len(path.split('/')) == 3
 
     # Filesystem methods
     # ==================
