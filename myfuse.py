@@ -2,11 +2,13 @@ from __future__ import print_function
 
 import os
 import sys
+import yaml
 import time
 import errno
 import logging
 
 import libordrin
+
 from subprocess import call
 from fuse import FUSE, FuseOSError, Operations
 
@@ -55,6 +57,12 @@ class OrdrinFs(Operations):
                 return True
         return False
 
+    def _is_ordr_in(self, path):
+        if self._is_restaurant(os.path.dirname(path)) and\
+                os.path.basename(path) == 'ordr.in':
+            return True
+        return False
+
     def _is_menu(self, path):
         if self._is_restaurant(os.path.dirname(path)) and \
                 os.path.basename(path) == 'menu':
@@ -90,6 +98,12 @@ class OrdrinFs(Operations):
                 mfile.write('  - %s:\n' % item.name)
                 mfile.write('    price: %s\n' % item.price)
                 mfile.write('    id: %s\n' % item.id)
+
+    def _order_from_yaml(self, full_path):
+        with open(full_path, 'r+') as yfile:
+            order_data = yaml.load(yfile)
+        items = order_data['Items']
+        tip = order_data['Tip']
 
     # Filesystem methods
     # ==================
@@ -160,7 +174,7 @@ class OrdrinFs(Operations):
             for rest in self.categories[os.path.basename(path)]:
                 dirents.add(rest.name)
         elif self._is_restaurant(path):
-            dirents.add('menu')
+            dirents.update(set(['menu', 'ordr.in']))
 
         if os.path.isdir(full_path):
             dirents.update(set(os.listdir(full_path)))
@@ -241,6 +255,12 @@ class OrdrinFs(Operations):
 
     def write(self, path, buf, offset, fh):
         self.logger.debug('write %s', path)
+
+        if self._is_ordr_in(path):
+            # FIXME
+            self.logger.debug('is order.in')
+            return
+
         os.lseek(fh, offset, os.SEEK_SET)
         return os.write(fh, buf)
 
@@ -256,6 +276,12 @@ class OrdrinFs(Operations):
 
     def release(self, path, fh):
         self.logger.debug('release %s', path)
+        full_path = self._full_path(path)
+
+        if self._is_ordr_in(path):
+            # FIXME: make the order with an api call
+            os.remove(full_path)
+
         return os.close(fh)
 
     def fsync(self, path, fdatasync, fh):
