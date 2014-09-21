@@ -56,11 +56,11 @@ class Menu:
             self.menu[c] = self.getItemsByCategory(c, menu)
 
     def getCategories(self, menu):
-        first = menu[0];
+        first = menu[0]
 
         #Check if we have categories
         if not 'children' in first:
-            return None
+            return []
 
         categories = []
         for c in menu:
