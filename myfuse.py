@@ -84,11 +84,12 @@ class OrdrinFs(Operations):
         mfile.write('Phone: %s\n' % rest.phone)
         mfile.write('Address: %s\n' % rest.addr)
         mfile.write('City: %s\n\n' % rest.city)
-        mfile.write('Menu:\n')
         for cat, items in rest.menu.menu.iteritems():
             mfile.write('%s:\n' % cat)
             for item in items:
-                mfile.write('  - %s\n' % item.name)
+                mfile.write('  - %s:\n' % item.name)
+                mfile.write('    price: %s\n' % item.price)
+                mfile.write('    id: %s\n' % item.id)
 
     # Filesystem methods
     # ==================
