@@ -1,11 +1,12 @@
 from __future__ import print_function
 
 import os
-import sys
 import yaml
 import time
 import errno
 import logging
+import tempfile
+import argparse
 
 import libordrin
 
@@ -301,8 +302,28 @@ class OrdrinFs(Operations):
         return self.flush(path, fh)
 
 
-def main(mountpoint, root):
-    FUSE(OrdrinFs(root), mountpoint, foreground=True)
+def main():
+    parser = argparse.ArgumentParser(
+        description='Ordr.in API as a file system.'
+    )
+    parser.add_argument(
+        '--mount',
+        help='Directory to mount the API structure in.'
+    )
+    parser.add_argument(
+        '--root',
+        help='Optional, alternate root directory to store temporary file '
+        'tree in.'
+    )
+
+    args = parser.parse_args()
+    if args.mount is None:
+        return False
+
+    if args.root is None:
+        args.root = tempfile.mkdtemp()
+
+    FUSE(OrdrinFs(args.root), args.mount, foreground=True)
 
 if __name__ == '__main__':
-    main(sys.argv[2], sys.argv[1])
+    main()
